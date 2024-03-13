@@ -103,6 +103,8 @@ trait Helpers
         }
 
         $subscription = $this->createSubscription($body);
+        $subscription['billing_plan_id'] = $this->billing_plan['id'];
+        $subscription['product_id'] = $this->product['id'];
 
         unset($this->product);
         unset($this->billing_plan);
@@ -295,7 +297,7 @@ trait Helpers
         }
 
         return [
-            'frequency' => [
+            'frequency'      => [
                 'interval_unit'  => $interval_unit,
                 'interval_count' => $interval_count,
             ],
@@ -326,12 +328,18 @@ trait Helpers
 
         $request_id = Str::random();
 
-        $this->product = $this->createProduct([
-            'name'          => $name,
-            'description'   => $description,
-            'type'          => $type,
-            'category'      => $category,
+        $product = $this->createProduct([
+            'name'        => $name,
+            'description' => $description,
+            'type'        => $type,
+            'category'    => $category,
         ], $request_id);
+
+        if ($error = data_get($product, 'error', false)) {
+            throw new \RuntimeException(data_get($error, 'details.0.description', 'Failed to add product'));
+        }
+
+        $this->product = $product;
 
         return $this;
     }
@@ -396,7 +404,11 @@ trait Helpers
             ],
         ];
 
-        $this->billing_plan = $this->createPlan($plan_params, $request_id);
+        $billingPlan = $this->createPlan($plan_params, $request_id);
+        if ($error = data_get($billingPlan, 'error', false)) {
+            throw new \RuntimeException(data_get($error, 'details.0.description', 'Failed to add billing plan'));
+        }
+        $this->billing_plan = $billingPlan;
     }
 
     /**
@@ -452,16 +464,16 @@ trait Helpers
     public function addShippingAddress(string $full_name, string $address_line_1, string $address_line_2, string $admin_area_2, string $admin_area_1, string $postal_code, string $country_code): \Srmklive\PayPal\Services\PayPal
     {
         $this->shipping_address = [
-            'name' => [
+            'name'    => [
                 'full_name' => $full_name,
             ],
             'address' => [
-                'address_line_1'  => $address_line_1,
-                'address_line_2'  => $address_line_2,
-                'admin_area_2'    => $admin_area_2,
-                'admin_area_1'    => $admin_area_1,
-                'postal_code'     => $postal_code,
-                'country_code'    => $country_code,
+                'address_line_1' => $address_line_1,
+                'address_line_2' => $address_line_2,
+                'admin_area_2'   => $admin_area_2,
+                'admin_area_1'   => $admin_area_1,
+                'postal_code'    => $postal_code,
+                'country_code'   => $country_code,
             ],
         ];
 
